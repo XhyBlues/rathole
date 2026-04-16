@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const me = await getMe();
@@ -12,8 +12,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // ✅ Next.js 16 标准写法
-    const { id } = await params;
+    const { id } = params;
 
     const postId = Number(id);
     if (!Number.isFinite(postId)) {

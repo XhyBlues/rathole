@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; commentId: string }> }
+  { params }: { params: { id: string; commentId: string } }
 ) {
   try {
     const me = await getMe();
@@ -12,7 +12,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, commentId } = await params;
+    const { id, commentId } = params;
 
     const postId = Number(id);
     const cId = Number(commentId);

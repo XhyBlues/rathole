@@ -4,34 +4,54 @@ import { getMe } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const me = await getMe();
+  try {
+    const me = await getMe();
 
-  // ✅ 权限判断
-  if (!me || me.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+    if (!me || me.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  // ✅ 正确写法（Next.js 16）
-  const { id } = await params;
+    const { id } = params;
+    const postId = Number(id);
 
-  const postId = Number(id);
-  if (!Number.isFinite(postId)) {
+    if (!Number.isFinite(postId)) {
+      return NextResponse.json(
+        { error: "Invalid post id", received: id },
+        { status: 400 }
+      );
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return NextResponse.json(
+        { error: "Post not found" },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.post.update({
+      where: { id: postId },
+      data: {
+        isLocked: !post.isLocked,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      post: {
+        id: updated.id,
+        isLocked: updated.isLocked,
+      },
+    });
+  } catch (e: any) {
     return NextResponse.json(
-      { error: "Invalid id", received: id },
-      { status: 400 }
+      { error: e?.message ?? "Internal Server Error" },
+      { status: 500 }
     );
   }
-
-  const body = await req.json().catch(() => ({}));
-  const isLocked = Boolean(body?.isLocked);
-
-  const post = await prisma.post.update({
-    where: { id: postId },
-    data: { isLocked },
-    select: { id: true, isLocked: true },
-  });
-
-  return NextResponse.json({ ok: true, post });
 }
