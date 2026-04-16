@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# =========================
+# Prisma / Database（补充）
+# =========================
+prisma/dev.db
+prisma/dev.db-journal
+prisma/dev-backup.db
