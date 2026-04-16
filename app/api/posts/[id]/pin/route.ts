@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const me = await getMe();
@@ -13,7 +13,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const postId = Number(id);
 
     if (!Number.isFinite(postId)) {

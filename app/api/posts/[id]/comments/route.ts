@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const me = await getMe();
@@ -12,7 +12,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
+
     const postId = Number(id);
 
     if (!Number.isFinite(postId)) {

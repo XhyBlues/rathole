@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; commentId: string } }
+  { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
     const me = await getMe();
@@ -12,14 +12,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, commentId } = params;
+    const { id, commentId } = await params;
 
     const postId = Number(id);
     const cId = Number(commentId);
 
     if (!Number.isFinite(postId) || !Number.isFinite(cId)) {
       return NextResponse.json(
-        { error: "Invalid id", received: { postId, commentId } },
+        { error: "Invalid id", received: { id, commentId } },
         { status: 400 }
       );
     }
@@ -37,10 +37,7 @@ export async function DELETE(
     }
 
     if (me.role !== "ADMIN" && me.id !== comment.authorId) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const updated = await prisma.comment.update({
