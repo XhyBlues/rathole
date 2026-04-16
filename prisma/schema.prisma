@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+
+  bio String?
+
+  posts Post[]
+
+  passwordResetTokens PasswordResetToken[]
+
+  votes Vote[]
+
+  comments Comment[]
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+
+  isPinned  Boolean  @default(false)
+  isLocked  Boolean  @default(false)
+  deletedAt DateTime?
+
+  section   PostSection @default(HOME)
+  weeklyId  Int?
+  weekly    WeeklyPrompt? @relation(fields: [weeklyId], references: [id])
+
+  votes     Vote[]
+  comments  Comment[]
+}
+
+enum PostSection {
+  HOME
+  WEEKLY
+}
+
+model WeeklyPrompt {
+  id        Int      @id @default(autoincrement())
+  prompt    String
+  weekKey   String   @unique
+  startAt   DateTime
+  endAt     DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  posts     Post[]
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Vote {
+  id        Int      @id @default(autoincrement())
+  value     Int      // +1 = upvote, -1 = downvote
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // 一个用户对一个帖子只能有一条投票记录
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  postId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // ✅ 楼中楼：自关联
+  parentId Int?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  @@index([postId, createdAt])
+  @@index([parentId, createdAt])
+
+  
+}
+
+
