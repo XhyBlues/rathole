@@ -1,34 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMe } from "@/lib/auth";
 
-export async function DELETE(req: Request) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; commentId: string }> }
+) {
   try {
     const me = await getMe();
     if (!me) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ 从 URL 解析参数（绕开 params bug）
-    const url = new URL(req.url);
-    const parts = url.pathname.split("/");
+    const { id, commentId } = await params;
 
-    // /api/posts/1/comments/2
-    const postId = Number(parts[3]);
-    const commentId = Number(parts[5]);
+    const postId = Number(id);
+    const cId = Number(commentId);
 
-    if (!Number.isFinite(postId) || !Number.isFinite(commentId)) {
+    if (!Number.isFinite(postId) || !Number.isFinite(cId)) {
       return NextResponse.json(
-        {
-          error: "Invalid id",
-          received: { postId, commentId },
-        },
+        { error: "Invalid id", received: { postId, commentId } },
         { status: 400 }
       );
     }
 
     const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
+      where: { id: cId },
       include: { author: { select: { id: true } } },
     });
 
@@ -47,7 +44,7 @@ export async function DELETE(req: Request) {
     }
 
     const updated = await prisma.comment.update({
-      where: { id: commentId },
+      where: { id: cId },
       data: { deletedAt: new Date() },
     });
 
