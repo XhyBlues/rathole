@@ -35,6 +35,7 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
       const res = await fetch(`/api/posts/${postId}/comments`, {
         cache: "no-store",
       });
+
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -43,6 +44,9 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
       } else {
         setComments((data?.comments ?? []) as CommentTree[]);
       }
+    } catch (e) {
+      console.error("load comments failed:", e);
+      setComments([]);
     } finally {
       setLoading(false);
     }
@@ -76,9 +80,8 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
         return;
       }
 
-      const created: CommentItem = data.comment;
-      setComments((prev) => [...prev, { ...(created as any), replies: [] }]);
       setContent("");
+      await load();
     } finally {
       setSubmitting(false);
     }
@@ -107,37 +110,12 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
         return;
       }
 
-      const created: CommentItem = data.comment;
-
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === parentId
-            ? { ...c, replies: [...c.replies, created] }
-            : c
-        )
-      );
-
       setReplyTo(null);
       setReplyContent("");
+      await load();
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function markSoftDeleted(commentId: number) {
-    const now = new Date().toISOString();
-
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id === commentId) {
-          return { ...c, deletedAt: now, content: "" };
-        }
-        const newReplies = c.replies.map((r) =>
-          r.id === commentId ? { ...r, deletedAt: now, content: "" } : r
-        );
-        return { ...c, replies: newReplies };
-      })
-    );
   }
 
   async function deleteComment(commentId: number) {
@@ -155,18 +133,16 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      // 你截图里就是这里弹出来的
       alert(data?.error ?? "Failed to delete");
       return;
     }
 
-    // soft delete：不移除，改为“已删除”
-    markSoftDeleted(commentId);
+    await load();
   }
 
   function canDelete(item: CommentItem) {
     if (!me) return false;
-    if (item.deletedAt) return false; // 已删除就不再显示删除按钮
+    if (item.deletedAt) return false;
     return me.role === "ADMIN" || me.id === item.author.id;
   }
 
@@ -210,7 +186,6 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
     <section style={{ marginTop: 28 }}>
       <h2 style={{ fontSize: 18, marginBottom: 10 }}>评论</h2>
 
-      {/* 顶层输入框 */}
       <div
         style={{
           display: "flex",
@@ -267,7 +242,6 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
                 background: "#fff",
               }}
             >
-              {/* 顶层评论 */}
               {renderMeta(
                 c,
                 canDelete(c) ? (
@@ -289,7 +263,6 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
 
               {renderContent(c)}
 
-              {/* 回复按钮 */}
               <div style={{ marginTop: 8 }}>
                 <button
                   onClick={() => {
@@ -311,10 +284,15 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
                 </button>
               </div>
 
-              {/* 回复输入框 */}
               {replyTo === c.id && !c.deletedAt && (
                 <div style={{ marginTop: 10, paddingLeft: 14 }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                    }}
+                  >
                     <textarea
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
@@ -351,7 +329,6 @@ export default function Comments({ postId, me }: { postId: number; me: Me }) {
                 </div>
               )}
 
-              {/* replies 列表 */}
               {c.replies.length > 0 && (
                 <div
                   style={{
